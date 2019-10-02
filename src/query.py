@@ -156,10 +156,30 @@ class Query:
     def user_portfolio(self):
         quotes = []
         user_portfolio = self.user_stock_portfolio()
+        
+        cash = self.user_buying_power()
+        
         for data in user_portfolio:
             symbol = data['symbol']
             count = float(data['quantity'])
-            quotes.append(Quote(symbol, count))
+            price = self.get_current_price(self, symbol)
+            fundamental_data = self.get_fundamentals(self, symbol)
+            
+            if self.trader.extended_hours_equity() portfolios_data['extended_hours_equity'] is not None:
+                total_equity = max(float(self.trader.equity()), float(self.trader.extended_hours_equity()))
+            else:
+                total_equity = float(self.trader.equity())
+            
+            
+            equity = float(count) * float(price)
+            equity_change = (float(count) * float(price)) - (float(count) * float(data['average_buy_price']))
+            weight = float(count) * float(price) * 100 / (float(total_equity) - float(cash))
+            if (float(data['average_buy_price']) == 0.0):
+                percent_change = 0.0
+            else:
+                percent_change = (float(price) - float(data['average_buy_price'])) * 100 / float(data['average_buy_price'])
+            
+            quotes.append(Quote(symbol, count, weight, data['average_buy_price'], equity, percent_change, equity_change, type, name, id, fundamental_data['pe_ratio']))
         return Portfolio(self, quotes, 'User Portfolio')
 
     # user_stock_portfolio:[String:String]
