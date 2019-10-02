@@ -68,6 +68,7 @@ class Robinhood:
         }
         self.session.headers = self.headers
         self.auth_method = self.login_prompt
+        self.device_token = ""
 
     def login_required(function):  # pylint: disable=E0213
         """ Decorator function that prompts user for login if they are not logged in already. Can be applied to any function using the @ notation. """
@@ -85,6 +86,34 @@ class Robinhood:
 
         return self.login(username=username, password=password)
 
+    def GenerateDeviceToken(self):
+        rands = []
+        for i in range(0, 16):
+            r = random.random()
+            rand = 4294967296.0 * r
+            rands.append((int(rand) >> ((3 & i) << 3)) & 255)
+
+        hexa = []
+        for i in range(0, 256):
+            hexa.append(str(hex(i + 256)).lstrip("0x").rstrip("L")[1:])
+
+        id = ""
+        for i in range(0, 16):
+            id += hexa[rands[i]]
+
+            if (i == 3) or (i == 5) or (i == 7) or (i == 9):
+                id += "-"
+
+        self.device_token = id
+        
+    def get_mfa_token(self, secret):
+        intervals_no = int(time.time()) // 30
+        key = base64.b32decode(secret, True)
+        msg = struct.pack(">Q", intervals_no)
+        h = hmac.new(key, msg, hashlib.sha1).digest()
+        o = h[19] & 15
+        h = '{0:06d}'.format((struct.unpack(">I", h[o:o + 4])[0] & 0x7fffffff) % 1000000)
+        return h
 
     def login(self,
               username,
@@ -107,19 +136,24 @@ class Robinhood:
             'password': self.password,
             'username': self.username,
             'grant_type': 'password',
-            'client_id': self.client_id
+            'client_id': self.client_id,
+            'expires_in': '86400',
+            'scope': 'internal',
+            'device_token': self.device_token,
+            'challenge_type': 'sms'
         }
 
         if mfa_code:
             payload['mfa_code'] = mfa_code
-        try:
-            res = self.session.post(endpoints.login(), data=payload, timeout=15)
-            res.raise_for_status()
-            data = res.json()
-        except requests.exceptions.HTTPError:
-            raise RH_exception.LoginFailed()
+        #try:
+        res = self.session.post(endpoints.login(), data=payload, timeout=15)
+        res.raise_for_status()
+        data = res.json()
+        #except requests.exceptions.HTTPError:
+            #raise RH_exception.LoginFailed()
 
-        if 'mfa_required' in data.keys():           # pragma: no cover
+        if 'mfa_required' in data.keys():
+            print("MFA REquired")# pragma: no cover
             raise RH_exception.TwoFactorRequired()  # requires a second call to enable 2FA
 
         if 'access_token' in data.keys() and 'refresh_token' in data.keys():

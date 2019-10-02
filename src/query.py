@@ -106,7 +106,7 @@ class Query:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Historical quote data for the instruments with the given symbols on a 5-minute, weekly interval.
-    def get_history(self, symbol, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
+    def get_history(self, symbol, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
         return self.trader.get_historical_quotes(symbol, interval.value, span.value, bounds.value)
 
     # get_news:[[String:String]]
@@ -165,7 +165,7 @@ class Query:
             price = self.get_current_price(self, symbol)
             fundamental_data = self.get_fundamentals(self, symbol)
             
-            if self.trader.extended_hours_equity() portfolios_data['extended_hours_equity'] is not None:
+            if self.trader.extended_hours_equity() is not None:
                 total_equity = max(float(self.trader.equity()), float(self.trader.extended_hours_equity()))
             else:
                 total_equity = float(self.trader.equity())

@@ -32,6 +32,9 @@ dotenv = load_dotenv(join(dirname(__file__)+"/../", '.env'))
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 
+print(EMAIL)
+print(PASSWORD)
+
 # Login and intialize query object with credentials from .env
 query = None
 try:
@@ -50,4 +53,6 @@ my_port = query.user_portfolio()
 #   Driver (Your Algorithms Here)
 #
 
-NoDayTradesAlgorithm(query, my_port, test=True, cash=1000)
+#NoDayTradesAlgorithm(query, my_port, test=True, cash=1000)
+
+NoDayTradesDSAlgorithm(query, my_port, test=True, cash=1000)

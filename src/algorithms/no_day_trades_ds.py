@@ -12,13 +12,13 @@ from enums import *
 from mathematics import *
 
 from algorithms.__algorithm import *
-from ml.__algorithm import *
+#from ml.recommendation import *
 
 # Abstract: Algorithm employing a no-day-trades tactic.
 #           For more info on this algorithm, see:
 #           https://www.quantopian.com/algorithms/5bf47d593f88ef0045e55e55
 
-class NoDayTradesAlgorithm(Algorithm):
+class NoDayTradesDSAlgorithm(Algorithm):
 
     # __init__:Void
     # param query:Query => Query object for API access.
