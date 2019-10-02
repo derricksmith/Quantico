@@ -331,6 +331,8 @@ class NoDayTradesAlgorithm(Algorithm):
                     # Number of shares to buy is the weight of the buy order divided by the buy price times the number of available cash
                     stock_shares = int(weight_for_buy_order * cash / buy_price)
                     if stock_shares > 0:
+                        
+                    #if current_price / average_buy_price - 1 < (-1.0 * abs(self.pct_threshold_to_buy)):
                         did_buy = Algorithm.buy(self, symbol, stock_shares, None, buy_price)
                         if did_buy:
                             # Decrement available cash and increment the number of buy orders
