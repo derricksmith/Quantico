@@ -13,7 +13,7 @@ from enums import *
 from mathematics import *
 
 from algorithms.__algorithm import *
-#from ml.recommendation import *
+from ml.recommendation import *
 
 # Abstract: Algorithm employing a no-day-trades tactic.
 #           For more info on this algorithm, see:
@@ -332,7 +332,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
                                 # Increment available cash and decrement the number of sell orders
                                 cash += stock_shares * sell_price
                                 open_sell_order_count += 1
-                                self.age[quote.symbol][last_buy_sell] = datetime.date.today())
+                                self.age[quote.symbol][last_buy_sell] = datetime.date.today()
                                 self.age[quote.symbol][count] += 1
                
 
@@ -389,50 +389,22 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     Algorithm.log(self, "Stock Shares " + str(stock_shares))
                     
                     if stock_shares > 0:
-					
-                        if quote.symbol in self.age:
-                            did_sell = False
-                            if self.age[quote.symbol] < 2:
-                                pass
-                            if (datetime.datetime.today() - self.age[quote.symbol]['last_buy_sell']).days <= 3:
-                                Algorithm.log(self, "Symbol has not been held for more than 3 days.  Cannot day-trade")
-                                pass
-                            elif self.immediate_sale_age <= self.age[quote.symbol]['count']:
-                                Algorithm.log(self, "Symbol has exceeded the immediate sale age. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
-                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
-                                pass
-                            elif self.immediate_sale_price >= current_price:
-                                Algorithm.log(self, "Symbol has exceeded the immediate sale price. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
-                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
-                                pass
-                            elif current_price / quote.average_buy_price - 1 > self.pct_threshold_to_sell:
-                                Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
-                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                        did_buy = False					
+                        if current_price / quote.average_buy_price - 1 > self.pct_threshold_to_buy:
+                            Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Buying " + str(stock_shares) + " shares of " + str(symbol) + " at " + str(buy_price) + ".")
+                            #did_buy = Algorithm.buy(self, quote.symbol, stock_shares, None, current_price)
                                 
-                            if did_sell:
-                                # Increment available cash and decrement the number of sell orders
-                                cash += stock_shares * sell_price
-                                open_sell_order_count += 1
-                                self.age[quote.symbol][last_buy_sell] = datetime.date.today())
-                                self.age[quote.symbol][count] += 1				
-					
-					
-					
-					
-					
-                        did_buy = True    
-                    #if current_price / average_buy_price - 1 < (-1.0 * abs(self.pct_threshold_to_buy)):
-                        Algorithm.log(self, "Buy " + str(stock_shares) + " shares of " + str(symbol) + " at " + str(buy_price))
-                        #did_buy = Algorithm.buy(self, symbol, stock_shares, None, buy_price)
                         if did_buy:
-                            # Decrement available cash and increment the number of buy orders
+                            # Increment available cash and decrement the number of sell orders
                             cash -= stock_shares * buy_price
                             open_buy_order_count += 1
-                            self.age[quote.symbol][last_buy_sell] = datetime.date.today())
-                            self.age[quote.symbol][count] += 1
+                            self.age[symbol][last_buy_sell] = datetime.date.today()
+                            self.age[symbol][count] += 1
 
-        Algorithm.log(self, "Finished run of perform_buy_sell")
+        Algorithm.log(self, "Finished run of perform_buy_sell")		
 
+    def recommendation(self, type):
+        print("ercommend")
 
     #
     # Event Functions
