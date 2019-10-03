@@ -10,3 +10,4 @@ pandas_market_calendars
 scipy
 sympy
 fast_arrow_auth
+sklearn

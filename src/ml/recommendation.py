@@ -1,4 +1,3 @@
-from estimation_models import tensorflow_lstm
 from sklearn.pipeline import Pipeline
 import pandas as pd
 import numpy
@@ -10,6 +9,7 @@ from mathematics import *
 
 from algorithms.__algorithm import *
 from ml.stock_price_data_pipeline import *
+from ml.tensorflow_lstm import *
 
 def stock_rating(query, symbol, ml_model='LSTM', perf_window=5, label_pct_cutoff=0.05, historic_window=30, seed=7):
     """
