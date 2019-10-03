@@ -31,14 +31,13 @@ import numpy as np
 dotenv = load_dotenv(join(dirname(__file__)+"/../", '.env'))
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
+QR = "ZDQLU36B7G636XM3"
 
-print(EMAIL)
-print(PASSWORD)
 
 # Login and intialize query object with credentials from .env
 query = None
 try:
-    query = Query(EMAIL, PASSWORD)
+    query = Query(EMAIL, PASSWORD, QR)
 except Exception as e:
     Utility.error("Could not log in: " + str(e))
     sys.exit()
@@ -55,4 +54,4 @@ my_port = query.user_portfolio()
 
 #NoDayTradesAlgorithm(query, my_port, test=True, cash=1000)
 
-NoDayTradesDSAlgorithm(query, my_port, test=True, cash=1000)
+NoDayTradesDSAlgorithm(query, my_port)

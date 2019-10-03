@@ -5,6 +5,8 @@
 # Imports
 import sys
 
+import json
+
 # Pandas
 import pandas as pd
 
@@ -168,7 +170,7 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Map of symbols to lists of Price models.
-    def get_history(self, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_history(self, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
         historicals = {}
         for quote in self.__quotes:
             historicals[quote.symbol] = list(map(lambda price: price, self.get_symbol_history(quote.symbol, interval, span, bounds)))
@@ -180,7 +182,7 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Tuple containing: (map of symbols to map of float timestamps to Price models, list of all times in historicals map).
-    def get_history_tuple(self, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_history_tuple(self, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
         historicals = {}
         times = {}
         time_list = []
@@ -203,7 +205,7 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns List of price tuples with the time, volume, open, close, high, low for each time in the interval.
-    def get_history_tuples(self, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_history_tuples(self, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
         history = self.get_history(interval, span, bounds)
         for symbol in history:
             history[symbol] = [ quote.as_tuple() for quote in history[quote] ]
@@ -215,8 +217,9 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns List of Price models with the time, volume, open, close, high, low for each time in the interval.
-    def get_symbol_history(self, symbol, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
-        historicals = self.__query.get_history(symbol, interval, span, bounds)['historicals']
+    def get_symbol_history(self, symbol, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
+        historicals = self.__query.get_history(symbol, interval, span, bounds)
+        historicals = historicals['results'][0]['historicals']		
         historicals = list(map(lambda h: Price(Utility.datetime_to_float(Utility.iso_to_datetime(h['begins_at'])), float(h['open_price']), float(h['close_price']), float(h['high_price']), float(h['low_price'])), historicals))
         return historicals
 
@@ -226,8 +229,9 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Map of float timestamps to prices for the given symbol.
-    def get_symbol_history_map(self, symbol, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
-        historicals = self.__query.get_history(symbol, interval, span, bounds)['historicals']
+    def get_symbol_history_map(self, symbol, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
+        historicals = self.__query.get_history(symbol, interval, span, bounds)
+        historicals = historicals['results'][0]['historicals']	
         historicals = list(map(lambda h: Price(Utility.datetime_to_float(Utility.iso_to_datetime(h['begins_at'])), float(h['open_price']), float(h['close_price']), float(h['high_price']), float(h['low_price'])), historicals))
         history = {}
         for price in historicals:
@@ -240,7 +244,7 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Map of Price model symbols to price tuples.
-    def get_portfolio_history(self, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_portfolio_history(self, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
         portfolio_history = {}
         for quote in quotes:
             portfolio_history[quote.symbol] = quote.price.as_tuple()
@@ -252,7 +256,7 @@ class Portfolio:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns A tuple containing (dataFrame, float, float, [float], [float]).
-    def get_market_data_tuple(self, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_market_data_tuple(self, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
 
         # Create dataFrame with times as rows, symbols as columns, and close prices as data
         historicals = self.get_history(interval, span, bounds)

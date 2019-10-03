@@ -5,6 +5,7 @@
 # Global Imports
 import numpy as np
 import math
+import datetime
 
 # Local Imports
 from utility import *
@@ -23,7 +24,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # __init__:Void
     # param query:Query => Query object for API access.
     # param sec_interval:Integer => Time interval in seconds for event handling.
-    def __init__(self, query, portfolio, sec_interval = 900, age_file = None, test = False, cash = 0.00):
+    def __init__(self, query, portfolio, sec_interval = 60, age_file = None, test = False, cash = 0.00):
 
         # Initialize properties
 
@@ -65,6 +66,9 @@ class NoDayTradesDSAlgorithm(Algorithm):
 
         # List of categories for stocks to be traded
         self.categories = [ Tag.ETF ]
+		
+        # Is the Algorithm generating candidates_to_trade, DO NOT CHANGE
+        self.generating_candidates = 0
 
         # Call super.__init__
         Algorithm.__init__(self, query, portfolio, sec_interval, name = "No Day Trades DS", buy_range = self.buy_range, test = test, cash = cash)
@@ -85,6 +89,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called an hour before the market opens.
     def on_market_will_open(self, cash = None, prices = None):
+        Algorithm.log(self, "Market will open in 1 hour.")
         Algorithm.on_market_will_open(self, cash, prices)
 
         self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
@@ -105,8 +110,6 @@ class NoDayTradesDSAlgorithm(Algorithm):
 
         self.overwrite_age_file()
 
-        self.perform_buy_sell()
-
         pass
 
     # on_market_open:Void
@@ -114,7 +117,12 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market opens.
     def on_market_open(self, cash = None, prices = None):
+        Algorithm.log(self, "Market just opened.")
         Algorithm.on_market_open(self, cash, prices)
+        #self.generate_candidates()		
+        #self.perform_buy_sell()
+        
+		
         pass
 
     # while_market_open:Void
@@ -122,7 +130,12 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_open(self, cash = None, prices = None):
+        Algorithm.log(self, "Market currently open.")
         Algorithm.while_market_open(self, cash, prices)
+        #self.generate_candidates()		
+        #self.perform_buy_sell()
+        
+		
         pass
 
     # on_market_close:Void
@@ -130,10 +143,35 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market closes.
     def on_market_close(self, cash = None, prices = None):
+        Algorithm.log(self, "Market has closed.")
         Algorithm.on_market_close(self, cash, prices)
+        #self.generate_candidates()
+        #Algorithm.cancel_open_orders(self)
+        
+		
+        pass
+		
+    # while_market_open:Void
+    # param cash:Float => User's buying power.
+    # param prices:{String:Float}? => Map of symbols to ask prices.
+    # NOTE: Called on an interval while market is open.
+    def while_market_closed(self, cash = None, prices = None):
+        Algorithm.log(self, "Market currently closed.")
+        Algorithm.while_market_closed(self, cash, prices)
+		
+        if len(self.candidates) == 0:
+            if self.generating_candidates == 1:
+                # Generating candidates takes time and may surpass the set interval.  Let the previous thread complete.
+                Algorithm.log(self, "Generating Candidates in progress, exiting thread")				
+                return
 
-        Algorithm.cancel_open_orders(self)
-
+            self.generating_candidates = 1
+            self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+            self.generating_candidates = 0
+        else:
+            print(self.candidates)
+            self.perform_buy_sell()
+       
         pass
 
     #
@@ -141,7 +179,6 @@ class NoDayTradesDSAlgorithm(Algorithm):
     #
 
     def generate_candidates(self):
-
         Algorithm.log(self, "Generating candidates for categories: " + str([ c.value for c in self.categories ]))
 
         # Get all fundamentals within the buy range
@@ -178,7 +215,13 @@ class NoDayTradesDSAlgorithm(Algorithm):
 
         # Set a weight for trades
         to_trade_weight = 1.00 / len(candidates_to_trade_symbols)
-
+		
+        all_candidate_symbols_str = ",".join([ str(c) for c in all_candidate_symbols ])
+        Algorithm.log(self, "Candidates: " + all_candidate_symbols_str)
+        candidates_to_trade_symbols_str = ",".join([ str(c) for c in candidates_to_trade_symbols ])
+        Algorithm.log(self, "Candidates to Trade: " + candidates_to_trade_symbols_str )
+        Algorithm.log(self, "Trade Weight: " + str(to_trade_weight))
+        
         return (all_candidate_symbols, candidates_to_trade_symbols, to_trade_weight)
 
     # perform_buy_sell:Void
@@ -267,26 +310,31 @@ class NoDayTradesDSAlgorithm(Algorithm):
                         #2 Sell if the immediate sale price is greater than the current price
                         #3 Sell if the current price is greater than the pct threshold to sell
                         if quote.symbol in self.age:
+                            did_sell = False
                             if self.age[quote.symbol] < 2:
                                 pass
-                            elif self.immediate_sale_age <= self.age[quote.symbol]:
-                                Algorithm.log(self, "Symbol has exceeded the immediate sale age. Selling " + stock_shares + " shares of " + quote.symbol + " at " + sell_price + ".")
-                                did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                            if (datetime.datetime.today() - self.age[quote.symbol]['last_buy_sell']).days <= 3:
+                                Algorithm.log(self, "Symbol has not been held for more than 3 days.  Cannot day-trade")
+                                pass
+                            elif self.immediate_sale_age <= self.age[quote.symbol]['count']:
+                                Algorithm.log(self, "Symbol has exceeded the immediate sale age. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
                                 pass
                             elif self.immediate_sale_price >= current_price:
-                                Algorithm.log(self, "Symbol has exceeded the immediate sale price. Selling " + stock_shares + " shares of " + quote.symbol + " at " + sell_price + ".")
-                                did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                                Algorithm.log(self, "Symbol has exceeded the immediate sale price. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
                                 pass
                             elif current_price / quote.average_buy_price - 1 > self.pct_threshold_to_sell:
-                                Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Selling " + stock_shares + " shares of " + quote.symbol + " at " + sell_price + ".")
-                                did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                                Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
                                 
                             if did_sell:
                                 # Increment available cash and decrement the number of sell orders
                                 cash += stock_shares * sell_price
                                 open_sell_order_count += 1
-                        else:
-                            self.age[quote.symbol] = 1
+                                self.age[quote.symbol][last_buy_sell] = datetime.date.today())
+                                self.age[quote.symbol][count] += 1
+               
 
         # Overwrite the age file
         self.overwrite_age_file()
@@ -297,13 +345,14 @@ class NoDayTradesDSAlgorithm(Algorithm):
         # Iterate over each candidate to buy
         open_buy_order_count
         for symbol in self.candidates:
-
+            Algorithm.log(self, "Analyze candidate " + str(symbol))
             # Finish buying stocks once the limit has been reached
             if open_buy_order_count > self.max_simult_buy_orders:
                 break
 
             # Store the current price of the candidate stock
             current_price = self.price(symbol)
+            Algorithm.log(self, "Current Price " + str(current_price))
 
             # Get the history of the stock
             history = self.portfolio.get_symbol_history(symbol, Span.TEN_MINUTE, Span.DAY)
@@ -316,6 +365,8 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     mean += price.close
                 mean /= max(len(history), 1)
                 mean = round(mean, 2)
+				
+                Algorithm.log(self, "Mean Price " + str(mean))
 
                 if mean != 0.0:
 
@@ -328,16 +379,57 @@ class NoDayTradesDSAlgorithm(Algorithm):
                         buy_price = current_price * BUY_FACTOR
                     buy_price = round(buy_price, 2)
 
-                    # Number of shares to buy is the weight of the buy order divided by the buy price times the number of available cash
+                    Algorithm.log(self, "Buy Price " + str(buy_price))              
+                    Algorithm.log(self, "Cash " + str(cash)) 
+                    Algorithm.log(self, "Weight For Buy Order " + str(weight_for_buy_order))   
+
+				    # Number of shares to buy is the weight of the buy order divided by the buy price times the number of available cash
                     stock_shares = int(weight_for_buy_order * cash / buy_price)
+                    
+                    Algorithm.log(self, "Stock Shares " + str(stock_shares))
+                    
                     if stock_shares > 0:
-                        
+					
+                        if quote.symbol in self.age:
+                            did_sell = False
+                            if self.age[quote.symbol] < 2:
+                                pass
+                            if (datetime.datetime.today() - self.age[quote.symbol]['last_buy_sell']).days <= 3:
+                                Algorithm.log(self, "Symbol has not been held for more than 3 days.  Cannot day-trade")
+                                pass
+                            elif self.immediate_sale_age <= self.age[quote.symbol]['count']:
+                                Algorithm.log(self, "Symbol has exceeded the immediate sale age. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                                pass
+                            elif self.immediate_sale_price >= current_price:
+                                Algorithm.log(self, "Symbol has exceeded the immediate sale price. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                                pass
+                            elif current_price / quote.average_buy_price - 1 > self.pct_threshold_to_sell:
+                                Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Selling " + str(stock_shares) + " shares of " + str(quote.symbol) + " at " + str(sell_price) + ".")
+                                #did_sell = Algorithm.sell(self, quote.symbol, stock_shares, None, current_price)
+                                
+                            if did_sell:
+                                # Increment available cash and decrement the number of sell orders
+                                cash += stock_shares * sell_price
+                                open_sell_order_count += 1
+                                self.age[quote.symbol][last_buy_sell] = datetime.date.today())
+                                self.age[quote.symbol][count] += 1				
+					
+					
+					
+					
+					
+                        did_buy = True    
                     #if current_price / average_buy_price - 1 < (-1.0 * abs(self.pct_threshold_to_buy)):
-                        did_buy = Algorithm.buy(self, symbol, stock_shares, None, buy_price)
+                        Algorithm.log(self, "Buy " + str(stock_shares) + " shares of " + str(symbol) + " at " + str(buy_price))
+                        #did_buy = Algorithm.buy(self, symbol, stock_shares, None, buy_price)
                         if did_buy:
                             # Decrement available cash and increment the number of buy orders
                             cash -= stock_shares * buy_price
                             open_buy_order_count += 1
+                            self.age[quote.symbol][last_buy_sell] = datetime.date.today())
+                            self.age[quote.symbol][count] += 1
 
         Algorithm.log(self, "Finished run of perform_buy_sell")
 

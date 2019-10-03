@@ -20,9 +20,10 @@ class Query:
     # __init__:Void
     # param email:String => Email of the Robinhood user.
     # param password:String => Password for the Robinhood user.
-    def __init__(self, email, password):
+    def __init__(self, email, password, qr_code):
+	
         self.trader = Robinhood()
-        self.trader.login(username=email, password=password)
+        self.trader.login(username=email, password=password, qr_code=qr_code)
         self.email = email
         self.password = password
 
@@ -106,7 +107,7 @@ class Query:
     # param span:Span => Range for the data to be returned. (default: YEAR)
     # param bounds:Span => The bounds to be included. (default: REGULAR)
     # returns Historical quote data for the instruments with the given symbols on a 5-minute, weekly interval.
-    def get_history(self, symbol, interval = "DAY", span = "YEAR", bounds = "REGULAR"):
+    def get_history(self, symbol, interval = Span.DAY, span = Span.YEAR, bounds = Bounds.REGULAR):
         return self.trader.get_historical_quotes(symbol, interval.value, span.value, bounds.value)
 
     # get_news:[[String:String]]

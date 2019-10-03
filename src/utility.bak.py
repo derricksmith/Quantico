@@ -170,6 +170,7 @@ class Utility:
     @staticmethod
     def sleep_then_execute(time, action, sec = 60):
         Utility.set_interval(sec, lambda: action(), time, None)
+            
 
     # execute_between_times:Void
     # param action:lambda Function => The function to execute on the secInterval before the time is reached.
@@ -179,6 +180,7 @@ class Utility:
     @staticmethod
     def execute_between_times(action, start_time = None, stop_time = None, sec = 60):
         Utility.set_interval(sec, lambda: action(), start_time, stop_time)
+            		
 
     # set_interval:Timer
     # param sec:Integer => Number of seconds between each execution of action.
@@ -207,9 +209,10 @@ class Utility:
                 if start_time > now:
                     Utility.set_interval(sec, action, start_time, None)
                 else:
-                    action()
+                    action()		
         t = threading.Timer(sec, call_action)
-        t.start()
+        t.daemon=True
+        t.start()	
         return t
 
     # get_next_market_hours:(datetime?, datetime?)
@@ -234,8 +237,8 @@ class Utility:
             end_time = end_times[1]
 
         return (Utility.dt64_to_datetime(start_time), Utility.dt64_to_datetime(end_time))
-
-    # get_current_market_hours:(datetime?, datetime?)
+		
+	# get_current_market_hours:(datetime?, datetime?)
     # returns Datetime tuple with (next_market_open_datetime, next_market_close_datetime)
     @staticmethod
     def get_current_day_close_time(market = "NYSE"):

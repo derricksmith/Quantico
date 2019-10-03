@@ -1,3 +1,12 @@
 python-dotenv
 termcolor
 textblob
+numpy
+python-dateutil
+matplotlib
+mpl_finance
+pandas
+pandas_market_calendars
+scipy
+sympy
+fast_arrow_auth

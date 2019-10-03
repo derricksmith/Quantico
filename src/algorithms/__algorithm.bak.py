@@ -38,7 +38,7 @@ class Algorithm:
         self.prices = {}                        # Map of symbols to the current ask price of one share
         self.cash = cash                        # Float buying power amount.
         self.timestamp = Utility.now_timestamp()# Updated timestamp the algorithm is running.
-        self.event = Event.ON_MARKET_WILL_OPEN  # Current even the algorithm is on
+        self.event = Event.ON_MARKET_WILL_OPEN  # Current event the algorithm is on
 
         # Backtesting properties
         self.test = test                        # Set to True if backtesting
@@ -66,8 +66,8 @@ class Algorithm:
             self.pre_open_hour = market_hours[0] - datetime.timedelta(hours=1)
             self.open_hour = market_hours[0]
             self.close_hour = market_hours[1]
-			
-            self.current_close_start = Utility.get_current_day_close_time()
+
+            self.current_close = Utility.get_current_day_close_time()
 
             # Indicate the market hours
             self.log("Next Market Open:  " + str(self.open_hour))
@@ -79,7 +79,7 @@ class Algorithm:
             self.on_custom_timer(lambda: self.on_market_open(), start_d64 = self.open_hour)
             self.on_custom_timer(lambda: self.while_market_open(), repeat_sec = sec_interval, start_d64 = self.open_hour, stop_d64 = self.close_hour)
             self.on_custom_timer(lambda: self.on_market_close(), start_d64 = self.close_hour)
-            self.on_custom_timer(lambda: self.while_market_closed(), repeat_sec = sec_interval, start_d64 = self.current_close_start, stop_d64 = self.pre_open_hour)
+            self.on_custom_timer(lambda: self.while_market_closed(), repeat_sec = sec_interval, start_d64 = self.current_close, stop_d64 = self.open_hour)
 
         # Refresh buy and sell lists
         self.buy_list = []
@@ -119,6 +119,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called an hour before the market opens.
     def on_market_will_open(self, cash = None, prices = None):
+        self.log("Market will open.")
         self.event = Event.ON_MARKET_WILL_OPEN
         self.__reset_for_next_day()
         self.__update_cash(cash)
@@ -130,6 +131,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market opens.
     def on_market_open(self, cash = None, prices = None):
+        self.log("Market just opened.")
         self.event = Event.ON_MARKET_OPEN
         self.__update_cash(cash)
         self.__update_prices(prices)
@@ -140,6 +142,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_open(self, cash = None, prices = None):
+        self.log("Market currently open.")
         self.event = Event.WHILE_MARKET_OPEN
         self.__update_cash(cash)
         self.__update_prices(prices)
@@ -150,19 +153,21 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market closes.
     def on_market_close(self, cash = None, prices = None):
+        self.log("Market has closed.")
         self.event = Event.ON_MARKET_CLOSE
         self.__update_cash(cash)
         self.__update_prices(prices)
         pass
-
+		
 	# while_market_closed:Void
     # param cash:Float => User's buying power.
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_closed(self, cash = None, prices = None):
-        self.event = Event.WHILE_MARKET_CLOSED
-        self.__update_cash(cash)
-        self.__update_prices(prices)
+        self.log("Market currently closed.")
+        self.event = Event.WHILE_MARKET_OPEN
+        #self.__update_cash(cash)
+        #self.__update_prices(prices)
         pass
 
     # on_custom_timer:Void
@@ -172,14 +177,19 @@ class Algorithm:
     # param stop_d64:Datetime64? => Date to stop the function calls.
     # NOTE: Starts a custom timer that fires with the given parameters.
     def on_custom_timer(self, func, repeat_sec = None, start_d64 = None, stop_d64 = None):
-        if not repeat_sec:	
-            if start_d64 is None:	
+        if not repeat_sec:
+            print("not repeat_sec")		
+            if start_d64 is None:
+                print("start_d64")		
                 func()
             else:
+                print("utility.sleep_then_execute " + str(func) + " - " + str(start_d64))
                 Utility.sleep_then_execute(time=start_d64, sec=1, action=lambda: func())
         else:
+            print("utility.execute_between_times " + str(func) + " - " + str(start_d64) + ":" + str(stop_d64))
             Utility.execute_between_times(action=lambda: func(), start_time=start_d64, stop_time=stop_d64, sec=repeat_sec)
-		
+        print("\n")
+
     # log:Void
     # param message:String => The string message to log.
     # param type:String => The string representation of the type of message this is.
@@ -270,12 +280,12 @@ class Algorithm:
 
         # Assure enough historicals data will be processed
         if len(historical_times) == 0:
-            self.log("Not enough data for a backtest.", 'error', 't')
+            self.log("Not enough data for a backtest.", 't')
             return
 
         # Assure enough cash is allocated
         if self.cash == 0.00:
-            self.log("Not enough starting cash for backtest.", 'error', 't')
+            self.log("Not enough starting cash for backtest.", 't')
             return
 
         previous_value = self.value()
