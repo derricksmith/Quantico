@@ -6,6 +6,8 @@
 import numpy as np
 import math
 import datetime
+import pystore
+import sqlite3
 
 # Local Imports
 from utility import *
@@ -31,6 +33,9 @@ class NoDayTradesDSAlgorithm(Algorithm):
         # Range of prices for stock purchasing
         self.buy_range = (1.00, 10.00)
 
+        # Minimum PE Ratio for stock purchasing
+        self.min_pe_ratio = (10)
+		
         # All stocks available to buy/sell
         self.candidates = []
 
@@ -156,6 +161,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_closed(self, cash = None, prices = None):
+        # Setup DB Connection
+        conn = sqlite3.connect('quantico.sqlite')
+        cursor = conn.cursor()
+		
+		
         Algorithm.log(self, "Market currently closed.")
         Algorithm.while_market_closed(self, cash, prices)
 		
@@ -171,7 +181,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
         else:
             print(self.candidates)
             self.perform_buy_sell()
-       
+        
+        # Close DB Connection
+        conn.commit()
+        conn.close()
+        
         pass
 
     #
@@ -179,11 +193,15 @@ class NoDayTradesDSAlgorithm(Algorithm):
     #
 
     def generate_candidates(self):
+        # Setup DB Connection
+        conn = sqlite3.connect('quantico.sqlite')
+        cursor = conn.cursor()
+		
         Algorithm.log(self, "Generating candidates for categories: " + str([ c.value for c in self.categories ]))
-
+		
         # Get all fundamentals within the buy range
         unsorted_fundamentals = self.query.get_fundamentals_by_criteria(self.buy_range, self.categories)
-
+        
         # Sort the unsorted fundamentals by low price (close would be preferred, but is unavailable)
         candidate_fundamentals = sorted(unsorted_fundamentals, key=lambda fund: fund['low'])
 
@@ -206,6 +224,10 @@ class NoDayTradesDSAlgorithm(Algorithm):
                 # Stock is short
                 short_candidate_fundamentals.append(fund)
                 short_candidate_low_avg += float(fund['low'])
+				
+            cursor.execute("INSERT INTO candidates (id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding) \
+                VALUES ('', " + fund['symbol'] + ", " + fund['description'] + ", " + fund['instrument'] + ", " + fund['sector'] + ", " + fund['industry'] + ", " + fund['ceo'] + ", " + fund['headquarters_city'] + ", " + fund['headquarters_state'] + ", " + fund['market_cap'] + ", " + fund['pb_ratio'] + ", " + fund['pe_ratio'] + ", " + fund['shares_outstanding'] + ")");
+			
         long_candidate_low_avg /= max(len(long_candidate_fundamentals), 1)
         short_candidate_low_avg /= max(len(short_candidate_fundamentals), 1)
 
@@ -221,6 +243,10 @@ class NoDayTradesDSAlgorithm(Algorithm):
         candidates_to_trade_symbols_str = ",".join([ str(c) for c in candidates_to_trade_symbols ])
         Algorithm.log(self, "Candidates to Trade: " + candidates_to_trade_symbols_str )
         Algorithm.log(self, "Trade Weight: " + str(to_trade_weight))
+		
+		# Close DB Connection
+        conn.commit()
+        conn.close()
         
         return (all_candidate_symbols, candidates_to_trade_symbols, to_trade_weight)
 
@@ -390,9 +416,9 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     
                     if stock_shares > 0:
                         did_buy = False					
-                        if current_price / quote.average_buy_price - 1 > self.pct_threshold_to_buy:
-                            Algorithm.log(self, "Symbol has exceeded the PCT Threshold. Buying " + str(stock_shares) + " shares of " + str(symbol) + " at " + str(buy_price) + ".")
-                            #did_buy = Algorithm.buy(self, quote.symbol, stock_shares, None, current_price)
+                        if 1==1:
+                            Algorithm.log(self, "A condition(1=1) was met. Buying " + str(stock_shares) + " shares of " + str(symbol) + " at " + str(buy_price) + ".")
+                            #did_buy = Algorithm.buy(self, symbol, stock_shares, None, current_price)
                                 
                         if did_buy:
                             # Increment available cash and decrement the number of sell orders
@@ -403,8 +429,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
 
         Algorithm.log(self, "Finished run of perform_buy_sell")		
 
-    def recommendation(self, type):
+    def recommendation(self, type, symbol):
         print("ercommend")
+
+
+
 
     #
     # Event Functions

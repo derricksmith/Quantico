@@ -11,3 +11,12 @@ scipy
 sympy
 fast_arrow_auth
 sklearn
+keras
+tensorflow
+python-snappy
+Dask
+Fastparquet
+multitasking
+pystore
+fsspec
+sqlite3
