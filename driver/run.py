@@ -50,6 +50,7 @@ cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS candidates (
     id                    INT      PRIMARY KEY     NOT NULL,
     symbol                TEXT     NOT NULL,
+    allow_trading         INT      NOT NULL,
     description           TEXT     NOT NULL,	
     instrument            TEXT     NOT NULL,
     sector                TEXT     NOT NULL,
@@ -81,7 +82,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS eft_holdings (
     pb_ratio              REAL     NOT NULL,
     pe_ratio              REAL     NOT NULL,
     shares_outstanding    REAL     NOT NULL,
-    weight        REAL     NOT NULL,
+    weight                REAL     NOT NULL,
     FOREIGN KEY (candidate_id)
         REFERENCES candidates (id));''')
 conn.commit()
