@@ -8,6 +8,7 @@ import math
 import datetime
 import pystore
 import sqlite3
+from decimal import *
 
 # Local Imports
 from utility import *
@@ -224,16 +225,49 @@ class NoDayTradesDSAlgorithm(Algorithm):
                 # Stock is short
                 short_candidate_fundamentals.append(fund)
                 short_candidate_low_avg += float(fund['low'])
-				
-            cursor.execute("INSERT INTO candidates (id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding) \
-                VALUES ('', " + fund['symbol'] + ", " + fund['description'] + ", " + fund['instrument'] + ", " + fund['sector'] + ", " + fund['industry'] + ", " + fund['ceo'] + ", " + fund['headquarters_city'] + ", " + fund['headquarters_state'] + ", " + fund['market_cap'] + ", " + fund['pb_ratio'] + ", " + fund['pe_ratio'] + ", " + fund['shares_outstanding'] + ")");
 			
+            # Get stock instrument info
+            fund_instrument = self.query.get_instrument(fund['symbol'])
+          
+            for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
+                id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding = row
+                update = False
+                if fund['symbol'] == symbol:
+                    description,update = (str(fund['description']),True)  if str(fund['description'])  != description else (description,False)				
+                    instrument,update = (str(fund_instrument),True)  if str(fund_instrument)  != instrument else (instrument,False)				
+                    sector,update = (str(fund['sector']),True)  if str(fund['sector'])  != sector else (sector,False)				
+                    industry,update = (str(fund['industry']),True)  if str(fund['industry'])  != industry else (industry,False)				
+                    ceo,update = (str(fund['ceo']),True)  if str(fund['ceo'])  != ceo else (ceo,False)				
+                    headquarters_city,update = (str(fund['headquarters_city']),True)  if str(fund['headquarters_city'])  != headquarters_city else (headquarters_city,False)				
+                    headquarters_state,update = (str(fund['headquarters_state']),True)  if str(fund['headquarters_state'])  != headquarters_state else (headquarters_state,False)	
+                    market_cap,update = (str(self.to_decimal(fund['market_cap']),True))  if str(self.to_decimal(fund['market_cap'])) != market_cap else (market_cap,False)				
+                    pb_ratio,update = (str(self.to_decimal(fund['pb_ratio']),True))  if str(self.to_decimal(fund['pb_ratio']))  != pb_ratio else (pb_ratio,False)				
+                    pe_ratio,update = (str(self.to_decimal(fund['pe_ratio']),True))  if str(self.to_decimal(fund['pe_ratio']))  != pe_ratio else (pe_ratio,False)	
+                    shares_outstanding,update = (str(self.to_decimal(fund['shares_outstanding'])),True)  if str(self.to_decimal(fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,False)				
+				
+                    # Update stock in sqlite if any values don't match
+                    if update == True:	
+                        cursor.execute("UPDATE candidates SET description = ?, instrument = ?, sector = ?, industry = ?, ceo = ?, headquarters_city = ?, headquarters_state = ?, market_cap = ?, pb_ratio = ?, pe_ratio = ?, shares_outstanding = ? WHERE symbol = ?", \
+                            (description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,fund['symbol'])) 
+				  
+				# Delete stock from sqlite if it does not exist in new 
+                if not any(fund['symbol'] == symbol for fund in candidate_fundamentals):		
+                    cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol));
+				
+                #break
+            else:
+                # Insert stock to sqlite 				
+                cursor.execute("INSERT INTO candidates (id,symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding) \
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ('',str(fund['symbol']),0, str(fund['description']),str(fund_instrument),str(fund['sector']),str(fund['industry']),str(fund['ceo']),str(fund['headquarters_city']),str(fund['headquarters_state']),str(self.to_decimal(fund['market_cap'])),str(self.to_decimal(fund['pb_ratio'])),str(self.to_decimal(fund['pe_ratio'])),str(self.to_decimal(fund['shares_outstanding']))))
         long_candidate_low_avg /= max(len(long_candidate_fundamentals), 1)
         short_candidate_low_avg /= max(len(short_candidate_fundamentals), 1)
 
         # Create a new list of candidates to trade
         candidates_to_trade_length = min(self.max_candidates + 1, len(candidate_fundamentals) + 1)
         candidates_to_trade_symbols = [ fund['symbol'] for fund in candidate_fundamentals[0:candidates_to_trade_length] ]
+
+        for fund in candidates_to_trade_symbols:
+            cursor.execute("UPDATE candidates SET allow_trading = 1 WHERE symbol = ?",(fund))	
 
         # Set a weight for trades
         to_trade_weight = 1.00 / len(candidates_to_trade_symbols)
@@ -438,6 +472,13 @@ class NoDayTradesDSAlgorithm(Algorithm):
     #
     # Event Functions
     #
+	
+    # Convert to Decimal
+    def to_decimal(self, input):
+        if input is None:
+            return "0.00"
+        else:
+            return Decimal(input)		
 
     # overwrite_age_file:Void
     def overwrite_age_file(self):
