@@ -19,4 +19,4 @@ Fastparquet
 multitasking
 pystore
 fsspec
-sqlite3
+pysqlite3

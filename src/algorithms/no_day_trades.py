@@ -12,6 +12,7 @@ from enums import *
 from mathematics import *
 
 from algorithms.__algorithm import *
+from tools.etfdb import *
 
 # Abstract: Algorithm employing a no-day-trades tactic.
 #           For more info on this algorithm, see:
