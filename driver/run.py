@@ -88,6 +88,6 @@ my_port = query.user_portfolio()
 #   Driver (Your Algorithms Here)
 #
 
-#NoDayTradesAlgorithm(query, my_port, test=True, cash=1000)
+#NoDayTradesAlgorithm(query,for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
 
 NoDayTradesDSAlgorithm(query, my_port)

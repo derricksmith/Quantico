@@ -85,13 +85,16 @@ class etfHoldings():
         try:
             soup = BeautifulSoup(browser.page_source, "html.parser")
             analyst_html = soup.find(id='analyst-collapse').find('div').find('p')
-            if analyst_html.text == "The Analyst Take for {} is not available".format(self.etf):
+            if analyst_html.text == "The Analyst Take for {} is not available".format(self.etf.upper()):
                 self.analyst_report = ""
             else:
                 self.analyst_report = analyst_html.text
         except NoSuchElementException:
             pass
-            
+    
+    def get_total_holdings(self):
+        return self.total_holdings
+    
     def get_holdings(self):
         return self.holdings
         

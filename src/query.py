@@ -64,7 +64,8 @@ class Query:
                     except Exception as e:
                         pass
         else:
-            all_symbols = [ instrument['symbol'] for instrument in self.trader.instruments_all() ]
+            all_symbols = [ instrument['symbol'] for instrument in self.trader.instruments() ]
+            
         queried_fundamentals = []
         for symbol in all_symbols:
             try:

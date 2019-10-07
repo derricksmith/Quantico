@@ -220,16 +220,16 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     update = False
                     if fund['symbol'] == symbol:
                         description,update = (str(fund['description']),True)  if str(fund['description'])  != description else (description,False)				
-                        instrument,update = (str(fund_instrument),True)  if str(fund_instrument)  != instrument else (instrument,False)				
+                        instrument,update = (str(fund_instrument['type']),True)  if str(fund_instrument)  != instrument else (instrument,False)				
                         sector,update = (str(fund['sector']),True)  if str(fund['sector'])  != sector else (sector,False)				
                         industry,update = (str(fund['industry']),True)  if str(fund['industry'])  != industry else (industry,False)				
                         ceo,update = (str(fund['ceo']),True)  if str(fund['ceo'])  != ceo else (ceo,False)				
                         headquarters_city,update = (str(fund['headquarters_city']),True)  if str(fund['headquarters_city'])  != headquarters_city else (headquarters_city,False)				
                         headquarters_state,update = (str(fund['headquarters_state']),True)  if str(fund['headquarters_state'])  != headquarters_state else (headquarters_state,False)	
-                        market_cap,update = (str(self.to_decimal(fund['market_cap']),True))  if str(self.to_decimal(fund['market_cap'])) != market_cap else (market_cap,0)				
-                        pb_ratio,update = (str(self.to_decimal(fund['pb_ratio']),True))  if str(self.to_decimal(fund['pb_ratio']))  != pb_ratio else (pb_ratio,0)				
-                        pe_ratio,update = (str(self.to_decimal(fund['pe_ratio']),True))  if str(self.to_decimal(fund['pe_ratio']))  != pe_ratio else (pe_ratio,0)	
-                        shares_outstanding,update = (str(self.to_decimal(fund['shares_outstanding'])),True)  if str(self.to_decimal(fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,0)				
+                        market_cap,update = (str(self.to_decimal(fund['market_cap'])),True)  if str(self.to_decimal(fund['market_cap'])) != market_cap else (market_cap,False)				
+                        pb_ratio,update = (str(self.to_decimal(fund['pb_ratio'])),True)  if str(self.to_decimal(fund['pb_ratio']))  != pb_ratio else (pb_ratio,False)				
+                        pe_ratio,update = (str(self.to_decimal(fund['pe_ratio'])),True)  if str(self.to_decimal(fund['pe_ratio']))  != pe_ratio else (pe_ratio,False)	
+                        shares_outstanding,update = (str(self.to_decimal(fund['shares_outstanding'])),True)  if str(self.to_decimal(fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,False)				
                         
                         if update == True:
                             # Update stock in sqlite if any values don't match	
@@ -251,9 +251,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
             
                     candidate_id = cursor.lastrowid
                     
-                print(fund_instrument)
-                
-                if fund_instrument =="ETF":
+                if fund_instrument['type'] =="etp":
                     etf = etfHoldings(fund['symbol'])
                     holdings = etf.get_holdings()
                     total_holdings = etf.get_total_holdings()
@@ -264,36 +262,31 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     print(total_holdings)
                     
                     if len(holdings) == int(total_holdings):				
-                        # Get all fundamentals for etf holdings
-                        etf_fundamentals = self.query.get_fundamentals_by_criteria(holdings)
-                    
                         for holding in holdings:
-                        
-                    
                             for row in cursor.execute("SELECT id,candidate_id, symbol, parent_symbol, etfdb_weight FROM etf_holdings"):
                                 id,candidate_id,symbol,parent_symbol,etfdb_weight = row
                                 update = False
                         
-                                if fund['symbol'] == symbol:
+                                if holding[0] == symbol:
                                     etfdb_weight,update = (str(holding[1]),True)  if str(holding[1])  != etfdb_weight else (etfdb_weight,False)				
                         
                                     if update == True:
                                         # Update stock in sqlite if any values don't match	
                                         cursor.execute("UPDATE etf_holdings SET etfdb_weight = ? WHERE symbol = ?", \
-                                            (holdings[fund['symbol']][1],fund['symbol'])) 
+                                            (holding[1],holding[0])) 
                         
                                     holding_id = id
                         
                                 # Delete stock from sqlite if it does not exist in new 
-                                if not any(fund['symbol'] == symbol for fund in etf_fundamentals):		
+                                if not any(holding[0] == symbol for holding in holdings):		
                                     cursor.execute("DELETE FROM eft_holdings WHERE symbol = ?", (symbol));
                     
                             else:
                                 # Insert stock to sqlite 				
-                                cursor.execute("INSERT INTO eft_holdings (id,candidate_id,symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etfdb_weight,etfdb_analyst_report) \
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ('',str(unsorted_fundamentals[fund['symbol']]['symbol']),0, str(unsorted_fundamentals[fund['symbol']]['description']),str(fund_instrument),str(unsorted_fundamentals[fund['symbol']]['sector']),str(unsorted_fundamentals[fund['symbol']]['industry']),str(unsorted_fundamentals[fund['symbol']]['ceo']),str(unsorted_fundamentals[fund['symbol']]['headquarters_city']),str(unsorted_fundamentals[fund['symbol']]['headquarters_state']),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['market_cap'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['pb_ratio'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['pe_ratio'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['shares_outstanding']))))
+                                cursor.execute("INSERT INTO eft_holdings (candidate_id,symbol,parent_symbol,eftdb_weight) \
+                                    VALUES (?, ?, ?, ?)", (candidate_id,str(holding[0]),str(fund['symbol']),holding[1]))
             
-                                symbol_id = cursor.lastrowid
+                                holding_id = cursor.lastrowid
                     
                     
                         # Update stock in sqlite if any values don't match	
@@ -328,9 +321,8 @@ class NoDayTradesDSAlgorithm(Algorithm):
             conn.commit()
             conn.close()
             self.generating_candidates = 0
-            
             return(all_candidate_symbols,candidates_to_trade_symbols,to_trade_weight)
-            
+        
         return(self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight)
         
     # perform_buy_sell:Void
