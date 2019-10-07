@@ -48,43 +48,33 @@ except Exception as e:
 conn = sqlite3.connect('quantico.sqlite')
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS candidates (
-    id                    INT      PRIMARY KEY     NOT NULL,
-    symbol                TEXT     NOT NULL,
-    allow_trading         INT      NOT NULL,
-    description           TEXT     NOT NULL,	
-    instrument            TEXT     NOT NULL,
-    sector                TEXT     NOT NULL,
-    industry              TEXT     NOT NULL,	
-    ceo                   TEXT     NOT NULL,
-    headquarters_city     TEXT     NOT NULL,
-    headquarters_state    TEXT     NOT NULL,
-    year_founded          TEXT     NOT NULL,
-    num_employees         TEXT     NOT NULL,
-    market_cap            REAL     NOT NULL,
-    pb_ratio              REAL     NOT NULL,
-    pe_ratio              REAL     NOT NULL,
-    shares_outstanding    REAL     NOT NULL);''')
-	
-cursor.execute('''CREATE TABLE IF NOT EXISTS eft_holdings (
-    id                    INT      PRIMARY KEY     NOT NULL,
-    candidate_id          INT      NOT NULL,
-    symbol                TEXT     NOT NULL,
-    description           TEXT     NOT NULL,	
-    instrument            TEXT     NOT NULL,
-    sector                TEXT     NOT NULL,
-    industry              TEXT     NOT NULL,	
-    ceo                   TEXT     NOT NULL,
-    headquarters_city     TEXT     NOT NULL,
-    headquarters_state    TEXT     NOT NULL,
-    year_founded          TEXT     NOT NULL,
-    num_employees         TEXT     NOT NULL,
-    market_cap            REAL     NOT NULL,
-    pb_ratio              REAL     NOT NULL,
-    pe_ratio              REAL     NOT NULL,
-    shares_outstanding    REAL     NOT NULL,
-    weight                REAL     NOT NULL,
-    FOREIGN KEY (candidate_id)
-        REFERENCES candidates (id));''')
+    id                    INTEGER      PRIMARY KEY    AUTOINCREMENT,
+    symbol                TEXT         NOT NULL,
+    allow_trading         INT          NOT NULL,
+    description           TEXT         NOT NULL,	
+    instrument            TEXT         NOT NULL,
+    sector                TEXT         NOT NULL,
+    industry              TEXT         NOT NULL,	
+    ceo                   TEXT         NOT NULL,
+    headquarters_city     TEXT         NOT NULL,
+    headquarters_state    TEXT         NOT NULL,
+    market_cap            REAL         NOT NULL,
+    pb_ratio              REAL         NOT NULL,
+    pe_ratio              REAL         NOT NULL,
+    shares_outstanding    REAL         NOT NULL,
+	etfdb_analyst_report  REAL         NOT NULL);''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS etf_holdings (
+    id                    INTEGER      PRIMARY KEY    AUTOINCREMENT,
+    candidate_id          INT          NOT NULL,
+	symbol                TEXT         NOT NULL,
+    parent_symbol         TEXT         NOT NULL,
+    etfdb_weight          REAL         NOT NULL);''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS trades (
+    id                    INTEGER      PRIMARY KEY    AUTOINCREMENT,
+	date                  REAL         NOT NULL,
+	symbol                TEXT         NOT NULL,
+	price                 REAL         NOT NULL,
+	action                TEXT         NOT NULL);''')
 conn.commit()
 cursor.close()
 

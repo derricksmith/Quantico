@@ -20,3 +20,5 @@ multitasking
 pystore
 fsspec
 pysqlite3
+bs4
+selenium

@@ -96,26 +96,26 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called an hour before the market opens.
     def on_market_will_open(self, cash = None, prices = None):
-        Algorithm.log(self, "Market will open in 1 hour.")
         Algorithm.on_market_will_open(self, cash, prices)
+        
 
         self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
 
-        lowest_price = self.buy_range[0]
-        for quote in self.portfolio.get_quotes():
-            current_price = self.price(quote.symbol)
-            if current_price < lowest_price:
-                lowest_price = current_price
-            if quote.symbol in self.age:
-                self.age[quote.symbol] += 1
-            else:
-                self.age[quote.symbol] = 1
-        for symbol in self.age:
-            if not self.portfolio.is_symbol_in_portfolio(symbol):
-                self.age[quote.symbol] = 0
-            Algorithm.log(self, "stock.symbol: " + symbol + " : age: " + str(self.age[symbol]))
+        #lowest_price = self.buy_range[0]
+        #for quote in self.portfolio.get_quotes():
+        #    current_price = self.price(quote.symbol)
+        #    if current_price < lowest_price:
+        #        lowest_price = current_price
+        #    if quote.symbol in self.age:
+        #        self.age[quote.symbol] += 1
+        #    else:
+        #        self.age[quote.symbol] = 1
+        #for symbol in self.age:
+        #    if not self.portfolio.is_symbol_in_portfolio(symbol):
+        #        self.age[quote.symbol] = 0
+        #    Algorithm.log(self, "stock.symbol: " + symbol + " : age: " + str(self.age[symbol]))
 
-        self.overwrite_age_file()
+        #self.overwrite_age_file()
 
         pass
 
@@ -124,12 +124,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market opens.
     def on_market_open(self, cash = None, prices = None):
-        Algorithm.log(self, "Market just opened.")
         Algorithm.on_market_open(self, cash, prices)
-        #self.generate_candidates()		
-        #self.perform_buy_sell()
         
-		
+        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        
+        #self.perform_buy_sell()
         pass
 
     # while_market_open:Void
@@ -137,12 +136,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_open(self, cash = None, prices = None):
-        Algorithm.log(self, "Market currently open.")
         Algorithm.while_market_open(self, cash, prices)
-        #self.generate_candidates()		
-        #self.perform_buy_sell()
         
-		
+        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+           
+        #self.perform_buy_sell()
         pass
 
     # on_market_close:Void
@@ -150,12 +148,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market closes.
     def on_market_close(self, cash = None, prices = None):
-        Algorithm.log(self, "Market has closed.")
         Algorithm.on_market_close(self, cash, prices)
-        #self.generate_candidates()
-        #Algorithm.cancel_open_orders(self)
         
-		
+        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+           
+        #self.perform_buy_sell()
         pass
 		
     # while_market_open:Void
@@ -163,31 +160,11 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_closed(self, cash = None, prices = None):
-        # Setup DB Connection
-        conn = sqlite3.connect('quantico.sqlite')
-        cursor = conn.cursor()
-		
-		
-        Algorithm.log(self, "Market currently closed.")
         Algorithm.while_market_closed(self, cash, prices)
-		
-        if len(self.candidates) == 0:
-            if self.generating_candidates == 1:
-                # Generating candidates takes time and may surpass the set interval.  Let the previous thread complete.
-                Algorithm.log(self, "Generating Candidates in progress, exiting thread")				
-                return
-
-            self.generating_candidates = 1
-            self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
-            self.generating_candidates = 0
-        else:
-            print(self.candidates)
-            self.perform_buy_sell()
-        
-        # Close DB Connection
-        conn.commit()
-        conn.close()
-        
+		    
+        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+           
+        #self.perform_buy_sell()
         pass
 
     #
@@ -195,111 +172,167 @@ class NoDayTradesDSAlgorithm(Algorithm):
     #
 
     def generate_candidates(self):
-        # Setup DB Connection
-        conn = sqlite3.connect('quantico.sqlite')
-        cursor = conn.cursor()
-		
-        Algorithm.log(self, "Generating candidates for categories: " + str([ c.value for c in self.categories ]))
-		
-        # Get all fundamentals within the buy range
-        unsorted_fundamentals = self.query.get_fundamentals_by_criteria(self.buy_range, self.categories)
+        Algorithm.log(self, "Generating Candidates")	
+        if len(self.candidates) == 0:
+            if self.generating_candidates == 1:
+                # Generating candidates takes time and may surpass the set interval.  Let the previous thread complete.
+                Algorithm.log(self, "Generating Candidates in progress, exiting thread")				
+                return(self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight)
         
-        # Sort the unsorted fundamentals by low price (close would be preferred, but is unavailable)
-        candidate_fundamentals = sorted(unsorted_fundamentals, key=lambda fund: fund['low'])
-
-        # Store the symbols of each candidate fundamental into a separate array
-        all_candidate_symbols = [ fund['symbol'] for fund in candidate_fundamentals ]
-
-        # Instantiate list of long and short fundamentals, as well as the average of their low prices
-        short_candidate_fundamentals = []
-        short_candidate_low_avg = 0.00
-        long_candidate_fundamentals = []
-        long_candidate_low_avg = 0.00
-
-        # Update long and short data
-        for fund in candidate_fundamentals:
-            if self.portfolio.is_symbol_in_portfolio(fund['symbol']):
-                # Stock is long
-                long_candidate_fundamentals.append(fund)
-                long_candidate_low_avg += float(fund['low'])
-            else:
-                # Stock is short
-                short_candidate_fundamentals.append(fund)
-                short_candidate_low_avg += float(fund['low'])
-			
-            # Get stock instrument info
-            fund_instrument = self.query.get_instrument(fund['symbol'])
-          
-            for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
-                id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding = row
-                update = False
-                if fund['symbol'] == symbol:
-                    description,update = (str(fund['description']),True)  if str(fund['description'])  != description else (description,False)				
-                    instrument,update = (str(fund_instrument),True)  if str(fund_instrument)  != instrument else (instrument,False)				
-                    sector,update = (str(fund['sector']),True)  if str(fund['sector'])  != sector else (sector,False)				
-                    industry,update = (str(fund['industry']),True)  if str(fund['industry'])  != industry else (industry,False)				
-                    ceo,update = (str(fund['ceo']),True)  if str(fund['ceo'])  != ceo else (ceo,False)				
-                    headquarters_city,update = (str(fund['headquarters_city']),True)  if str(fund['headquarters_city'])  != headquarters_city else (headquarters_city,False)				
-                    headquarters_state,update = (str(fund['headquarters_state']),True)  if str(fund['headquarters_state'])  != headquarters_state else (headquarters_state,False)	
-                    market_cap,update = (str(self.to_decimal(fund['market_cap']),True))  if str(self.to_decimal(fund['market_cap'])) != market_cap else (market_cap,False)				
-                    pb_ratio,update = (str(self.to_decimal(fund['pb_ratio']),True))  if str(self.to_decimal(fund['pb_ratio']))  != pb_ratio else (pb_ratio,False)				
-                    pe_ratio,update = (str(self.to_decimal(fund['pe_ratio']),True))  if str(self.to_decimal(fund['pe_ratio']))  != pe_ratio else (pe_ratio,False)	
-                    shares_outstanding,update = (str(self.to_decimal(fund['shares_outstanding'])),True)  if str(self.to_decimal(fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,False)				
-				
-                    # Update stock in sqlite if any values don't match	
-                    cursor.execute("UPDATE candidates SET description = ?, instrument = ?, sector = ?, industry = ?, ceo = ?, headquarters_city = ?, headquarters_state = ?, market_cap = ?, pb_ratio = ?, pe_ratio = ?, shares_outstanding = ? WHERE symbol = ?", \
-                        (description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,fund['symbol'])) 
-				  
-				# Delete stock from sqlite if it does not exist in new 
-                if not any(fund['symbol'] == symbol for fund in candidate_fundamentals):		
-                    cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol));
-				
-                #break
-            else:
-                # Insert stock to sqlite 				
-                cursor.execute("INSERT INTO candidates (id,symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding) \
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ('',str(fund['symbol']),0, str(fund['description']),str(fund_instrument),str(fund['sector']),str(fund['industry']),str(fund['ceo']),str(fund['headquarters_city']),str(fund['headquarters_state']),str(self.to_decimal(fund['market_cap'])),str(self.to_decimal(fund['pb_ratio'])),str(self.to_decimal(fund['pe_ratio'])),str(self.to_decimal(fund['shares_outstanding']))))
+            self.generating_candidates = 1
+            # Setup DB Connection
+            conn = sqlite3.connect('quantico.sqlite')
+            cursor = conn.cursor()
+		
+            Algorithm.log(self, "Generating candidates for categories: " + str([ c.value for c in self.categories ]))
+		
+            # Get all fundamentals within the buy range
+            unsorted_fundamentals = self.query.get_fundamentals_by_criteria(self.buy_range, self.categories)
         
-            if fund_instrument =="ETF":
-                etf = etfHoldings(fund['symbol'])
-                holdings = etf.get_holdings()
-                
-                for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
-                    id,candidate_id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,weight = row
-                    update = False
-                    
-                    
+            # Sort the unsorted fundamentals by low price (close would be preferred, but is unavailable)
+            candidate_fundamentals = sorted(unsorted_fundamentals, key=lambda fund: fund['low'])
+
+            # Store the symbols of each candidate fundamental into a separate array
+            all_candidate_symbols = [ fund['symbol'] for fund in candidate_fundamentals ]
+
+            # Instantiate list of long and short fundamentals, as well as the average of their low prices
+            short_candidate_fundamentals = []
+            short_candidate_low_avg = 0.00
+            long_candidate_fundamentals = []
+            long_candidate_low_avg = 0.00
+
+            # Update long and short data
+            for fund in candidate_fundamentals:
+                if self.portfolio.is_symbol_in_portfolio(fund['symbol']):
+                    # Stock is long
+                    long_candidate_fundamentals.append(fund)
+                    long_candidate_low_avg += float(fund['low'])
                 else:
+                    # Stock is short
+                    short_candidate_fundamentals.append(fund)
+                    short_candidate_low_avg += float(fund['low'])
+			
+                # Get stock instrument info
+                fund_instrument = self.query.get_instrument(fund['symbol'])
+          
+                for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
+                    id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding = row
+                    update = False
+                    if fund['symbol'] == symbol:
+                        description,update = (str(fund['description']),True)  if str(fund['description'])  != description else (description,False)				
+                        instrument,update = (str(fund_instrument),True)  if str(fund_instrument)  != instrument else (instrument,False)				
+                        sector,update = (str(fund['sector']),True)  if str(fund['sector'])  != sector else (sector,False)				
+                        industry,update = (str(fund['industry']),True)  if str(fund['industry'])  != industry else (industry,False)				
+                        ceo,update = (str(fund['ceo']),True)  if str(fund['ceo'])  != ceo else (ceo,False)				
+                        headquarters_city,update = (str(fund['headquarters_city']),True)  if str(fund['headquarters_city'])  != headquarters_city else (headquarters_city,False)				
+                        headquarters_state,update = (str(fund['headquarters_state']),True)  if str(fund['headquarters_state'])  != headquarters_state else (headquarters_state,False)	
+                        market_cap,update = (str(self.to_decimal(fund['market_cap']),True))  if str(self.to_decimal(fund['market_cap'])) != market_cap else (market_cap,0)				
+                        pb_ratio,update = (str(self.to_decimal(fund['pb_ratio']),True))  if str(self.to_decimal(fund['pb_ratio']))  != pb_ratio else (pb_ratio,0)				
+                        pe_ratio,update = (str(self.to_decimal(fund['pe_ratio']),True))  if str(self.to_decimal(fund['pe_ratio']))  != pe_ratio else (pe_ratio,0)	
+                        shares_outstanding,update = (str(self.to_decimal(fund['shares_outstanding'])),True)  if str(self.to_decimal(fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,0)				
+                        
+                        if update == True:
+                            # Update stock in sqlite if any values don't match	
+                            cursor.execute("UPDATE candidates SET description = ?, instrument = ?, sector = ?, industry = ?, ceo = ?, headquarters_city = ?, headquarters_state = ?, market_cap = ?, pb_ratio = ?, pe_ratio = ?, shares_outstanding = ? WHERE symbol = ?", \
+                                (description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,fund['symbol'])) 
+                        
+                        candidate_id = id
+                        
+                    # Delete stock from sqlite if it does not exist in new 
+                    if not any(fund['symbol'] == symbol for fund in candidate_fundamentals):		
+                        cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol))
+                        cursor.execute("DELETE FROM eft_holdings WHERE parent_symbol = ?", (symbol))
+                    
+                    #break
+                else:
+                    # Insert stock to sqlite 				
+                    cursor.execute("INSERT INTO candidates (symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etfdb_analyst_report) \
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(fund['symbol']),0, str(fund['description']),str(fund_instrument),str(fund['sector']),str(fund['industry']),str(fund['ceo']),str(fund['headquarters_city']),str(fund['headquarters_state']),str(self.to_decimal(fund['market_cap'])),str(self.to_decimal(fund['pb_ratio'])),str(self.to_decimal(fund['pe_ratio'])),str(self.to_decimal(fund['shares_outstanding'])),""))
+            
+                    candidate_id = cursor.lastrowid
+                    
+                print(fund_instrument)
                 
+                if fund_instrument =="ETF":
+                    etf = etfHoldings(fund['symbol'])
+                    holdings = etf.get_holdings()
+                    total_holdings = etf.get_total_holdings()
+                    analyst_report = etf.get_analyst_report()
+                    
+                    
+                    print(len(holdings))
+                    print(total_holdings)
+                    
+                    if len(holdings) == int(total_holdings):				
+                        # Get all fundamentals for etf holdings
+                        etf_fundamentals = self.query.get_fundamentals_by_criteria(holdings)
+                    
+                        for holding in holdings:
+                        
+                    
+                            for row in cursor.execute("SELECT id,candidate_id, symbol, parent_symbol, etfdb_weight FROM etf_holdings"):
+                                id,candidate_id,symbol,parent_symbol,etfdb_weight = row
+                                update = False
+                        
+                                if fund['symbol'] == symbol:
+                                    etfdb_weight,update = (str(holding[1]),True)  if str(holding[1])  != etfdb_weight else (etfdb_weight,False)				
+                        
+                                    if update == True:
+                                        # Update stock in sqlite if any values don't match	
+                                        cursor.execute("UPDATE etf_holdings SET etfdb_weight = ? WHERE symbol = ?", \
+                                            (holdings[fund['symbol']][1],fund['symbol'])) 
+                        
+                                    holding_id = id
+                        
+                                # Delete stock from sqlite if it does not exist in new 
+                                if not any(fund['symbol'] == symbol for fund in etf_fundamentals):		
+                                    cursor.execute("DELETE FROM eft_holdings WHERE symbol = ?", (symbol));
+                    
+                            else:
+                                # Insert stock to sqlite 				
+                                cursor.execute("INSERT INTO eft_holdings (id,candidate_id,symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etfdb_weight,etfdb_analyst_report) \
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ('',str(unsorted_fundamentals[fund['symbol']]['symbol']),0, str(unsorted_fundamentals[fund['symbol']]['description']),str(fund_instrument),str(unsorted_fundamentals[fund['symbol']]['sector']),str(unsorted_fundamentals[fund['symbol']]['industry']),str(unsorted_fundamentals[fund['symbol']]['ceo']),str(unsorted_fundamentals[fund['symbol']]['headquarters_city']),str(unsorted_fundamentals[fund['symbol']]['headquarters_state']),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['market_cap'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['pb_ratio'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['pe_ratio'])),str(self.to_decimal(unsorted_fundamentals[fund['symbol']]['shares_outstanding']))))
             
-        long_candidate_low_avg /= max(len(long_candidate_fundamentals), 1)
-        short_candidate_low_avg /= max(len(short_candidate_fundamentals), 1)
+                                symbol_id = cursor.lastrowid
+                    
+                    
+                        # Update stock in sqlite if any values don't match	
+                        cursor.execute("UPDATE candidates SET etfdb_analyst_report = ? WHERE symbol = ?", \
+                            (analyst_report,fund['symbol']))
+					
+					
+            long_candidate_low_avg /= max(len(long_candidate_fundamentals), 1)
+            short_candidate_low_avg /= max(len(short_candidate_fundamentals), 1)
 
-        # Create a new list of candidates to trade
-        candidates_to_trade_length = min(self.max_candidates + 1, len(candidate_fundamentals) + 1)
-        candidates_to_trade_symbols = [ fund['symbol'] for fund in candidate_fundamentals[0:candidates_to_trade_length] ]
+            # Create a new list of candidates to trade
+            candidates_to_trade_length = min(self.max_candidates + 1, len(candidate_fundamentals) + 1)
+            candidates_to_trade_symbols = [ fund['symbol'] for fund in candidate_fundamentals[0:candidates_to_trade_length] ]
 
-        
-        
-        
-        for fund in candidates_to_trade_symbols:
-            cursor.execute("UPDATE candidates SET allow_trading = 1 WHERE symbol = ?",(fund))	
             
-        # Set a weight for trades
-        to_trade_weight = 1.00 / len(candidates_to_trade_symbols)
-		
-        all_candidate_symbols_str = ",".join([ str(c) for c in all_candidate_symbols ])
-        Algorithm.log(self, "Candidates: " + all_candidate_symbols_str)
-        candidates_to_trade_symbols_str = ",".join([ str(c) for c in candidates_to_trade_symbols ])
-        Algorithm.log(self, "Candidates to Trade: " + candidates_to_trade_symbols_str )
-        Algorithm.log(self, "Trade Weight: " + str(to_trade_weight))
-		
-		# Close DB Connection
-        conn.commit()
-        conn.close()
+            
+            
+            for fund in candidates_to_trade_symbols:
+                print(fund)
+                #cursor.execute("UPDATE candidates SET allow_trading = 1 WHERE symbol = ?",(fund))	
+                
+            # Set a weight for trades
+            to_trade_weight = 1.00 / len(candidates_to_trade_symbols)
+            
+            all_candidate_symbols_str = ",".join([ str(c) for c in all_candidate_symbols ])
+            Algorithm.log(self, "Candidates: " + all_candidate_symbols_str)
+            candidates_to_trade_symbols_str = ",".join([ str(c) for c in candidates_to_trade_symbols ])
+            Algorithm.log(self, "Candidates to Trade: " + candidates_to_trade_symbols_str )
+            Algorithm.log(self, "Trade Weight: " + str(to_trade_weight))
+            
+            # Close DB Connection
+            conn.commit()
+            conn.close()
+            self.generating_candidates = 0
+            
+            return(all_candidate_symbols,candidates_to_trade_symbols,to_trade_weight)
+            
+        return(self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight)
         
-        return (all_candidate_symbols, candidates_to_trade_symbols, to_trade_weight)
-
     # perform_buy_sell:Void
     def perform_buy_sell(self):
 
@@ -480,7 +513,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
         Algorithm.log(self, "Finished run of perform_buy_sell")		
 
     def recommendation(self, type, symbol):
-        print("ercommend")
+        print("recommend")
 
 
 

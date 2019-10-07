@@ -32,7 +32,20 @@ class Query:
     #   Getters   #
     ##           ##
 
-
+	# get_fundamentals_by_symbols:[String]
+    # param price_range:(float, float) => High and low prices for the queried fundamentals.
+    # returns List of symbols that fit the given criteria.
+    def get_fundamentals_by_symbols(self, symbols = []):
+        queried_fundamentals = []
+        for symbol in symbols:
+            try:
+                fundamentals = self.get_fundamentals(symbol)
+                fundamentals['symbol'] = symbol
+                queried_fundamentals.append(fundamentals)
+            except Exception as e:
+                continue
+        return queried_fundamentals
+	
     # get_fundamentals_by_criteria:[String]
     # param price_range:(float, float) => High and low prices for the queried fundamentals.
     # returns List of symbols that fit the given criteria.

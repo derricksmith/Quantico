@@ -119,6 +119,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called an hour before the market opens.
     def on_market_will_open(self, cash = None, prices = None):
+        self.log("Market will open in 1 hour.")
         self.event = Event.ON_MARKET_WILL_OPEN
         self.__reset_for_next_day()
         self.__update_cash(cash)
@@ -130,6 +131,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market opens.
     def on_market_open(self, cash = None, prices = None):
+        self.log("Market just opened.")
         self.event = Event.ON_MARKET_OPEN
         self.__update_cash(cash)
         self.__update_prices(prices)
@@ -140,6 +142,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_open(self, cash = None, prices = None):
+        self.log("Market is currently open.")
         self.event = Event.WHILE_MARKET_OPEN
         self.__update_cash(cash)
         self.__update_prices(prices)
@@ -150,6 +153,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called exactly when the market closes.
     def on_market_close(self, cash = None, prices = None):
+        self.log("Market has closed.")
         self.event = Event.ON_MARKET_CLOSE
         self.__update_cash(cash)
         self.__update_prices(prices)
@@ -160,6 +164,7 @@ class Algorithm:
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called on an interval while market is open.
     def while_market_closed(self, cash = None, prices = None):
+        self.log("Market is currently closed.")
         self.event = Event.WHILE_MARKET_CLOSED
         self.__update_cash(cash)
         self.__update_prices(prices)

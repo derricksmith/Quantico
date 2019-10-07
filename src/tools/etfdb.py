@@ -24,7 +24,6 @@ class etfHoldings():
     def __init__(self, etf):
         self.etf = etf
         self.scrape(etf)
-        self.total_holdings = len(self.holdings)
         
     def scrape(self, etf):
         options = webdriver.ChromeOptions()
@@ -34,23 +33,34 @@ class etfHoldings():
         
         browser.get('http://etfdb.com/etf/{}'.format(etf))
         
+        # Get total holdings from html
+        self.parse_holdings_count(browser)
+        # Get holdings from html
         self.parse_holdings(browser)
+        # Get analyst report from html
         self.parse_analyst_report(browser)
+		
+    def parse_holdings_count(self,browser):
+        soup = BeautifulSoup(browser.page_source, "html.parser")
+		
+        holdings_text = soup.find(id='holdings-collapse').find_all('h3')[0].text
+        self.total_holdings = re.search(r'All (.*?) Holdings', holdings_text).group(1)
         
     def parse_holdings(self, browser):
         soup = BeautifulSoup(browser.page_source, "html.parser")
         
         for row in soup.find(id='etf-holdings').tbody.find_all('tr'):      
-            print(row)
             cells = row.find_all('td')
             try:
                 ticker = re.search('\(([^)]+)', cells[0].text.strip().replace(',', '')).group(1)
             except:
                 text = cells[0].text.strip().replace(',', '').encode('UTF-8')
                 if(b'\xc2\xa9' in text):
-                    ticker = "c"
+                    ticker = "C"
+                elif(b'\xe2\x84\xa2' in text):
+                    ticker ="TM"
                 else:
-                    pass
+                    ticker = text
             weight = cells[1].text.strip().replace(',', '').replace('%', '')
   
             row = [ticker, weight]
@@ -67,7 +77,7 @@ class etfHoldings():
                     time.sleep(1.5)
                     self.parse_holdings(browser)
                 except:
-                    
+                    pass    
         except NoSuchElementException:
             pass
         
