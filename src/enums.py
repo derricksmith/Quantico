@@ -74,3 +74,4 @@ class Event(Enum):
     WHILE_MARKET_OPEN = 2
     ON_MARKET_CLOSE = 3
     WHILE_MARKET_CLOSED = 4	
+    RUN_ONCE = 5

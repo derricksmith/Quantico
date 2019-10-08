@@ -29,6 +29,7 @@ class etfHoldings():
         options = webdriver.ChromeOptions()
         options.add_argument('headless')
         options.add_argument('log-level=3')
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
         browser = webdriver.Chrome(options=options)
         
         browser.get('http://etfdb.com/etf/{}'.format(etf))
@@ -59,6 +60,8 @@ class etfHoldings():
                     ticker = "C"
                 elif(b'\xe2\x84\xa2' in text):
                     ticker ="TM"
+                elif(b'Cash Component' in text):
+                    ticker ="Cash Component"
                 else:
                     ticker = text
             weight = cells[1].text.strip().replace(',', '').replace('%', '')

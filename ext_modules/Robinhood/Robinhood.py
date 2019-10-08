@@ -462,7 +462,7 @@ class Robinhood:
             bounds = Bounds(bounds)
 
         historicals = endpoints.historicals() + "/?symbols=" + ','.join(stock).upper() + "&interval=" + interval + "&span=" + span + "&bounds=" + bounds.name.lower()
-
+        
         res = self.session.get(historicals, timeout=15)
         return res.json()
 
@@ -704,6 +704,7 @@ class Robinhood:
         res = res.json()
 
         return res['results'][0]
+        
 
 
     def get_url(self, url):
@@ -987,9 +988,10 @@ class Robinhood:
             Returns:
                 (:object: `dict`): JSON dict from getting positions
         """
-
-        return self.session.get(endpoints.positions(), timeout=15).json()
-
+        try:
+            return self.session.get(endpoints.positions(), timeout=15).json()
+        except requests.exceptions.RequestException as e:
+            raise e
 
     def securities_owned(self):
         """Returns list of securities' symbols that the user has shares in
