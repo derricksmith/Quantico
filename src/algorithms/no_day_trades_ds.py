@@ -91,15 +91,14 @@ class NoDayTradesDSAlgorithm(Algorithm):
     # Event Functions
     #
     
-    # run_once:Void
+    # run once:Void
     # param cash:Float => User's buying power.
     # param prices:{String:Float}? => Map of symbols to ask prices.
     # NOTE: Called once when algorithm is run.
     def run_once(self, cash = None, prices = None):
         Algorithm.run_once(self, cash, prices)
-        
-        
         self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        pass
 
     # on_market_will_open:Void
     # param cash:Float => User's buying power.
@@ -109,7 +108,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
         Algorithm.on_market_will_open(self, cash, prices)
        
         # Generate Candidates
-        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        # self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
 
         #lowest_price = self.buy_range[0]
         #for quote in self.portfolio.get_quotes():
@@ -137,7 +136,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
         Algorithm.on_market_open(self, cash, prices)
         
         # Generate Candidates
-        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        #self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
         
         #self.perform_buy_sell()
         pass
@@ -149,7 +148,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
     def while_market_open(self, cash = None, prices = None):
         Algorithm.while_market_open(self, cash, prices)
         
-        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        #self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
            
         #self.perform_buy_sell()
         pass
@@ -162,7 +161,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
         Algorithm.on_market_close(self, cash, prices)
         
         # Generate Candidates
-        self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+        #self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
            
         #self.perform_buy_sell()
         pass
@@ -175,7 +174,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
         Algorithm.while_market_closed(self, cash, prices)
 		
         # Generate Candidates        
-        #self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
+       #self.candidates, self.candidates_to_trade, self.candidates_to_trade_weight = self.generate_candidates()
    
         #self.perform_buy_sell()
         pass
@@ -250,9 +249,9 @@ class NoDayTradesDSAlgorithm(Algorithm):
                         candidate_id = id
                         
                     # Delete stock from sqlite if it does not exist in new 
-                    if not any(fund['symbol'] == symbol for fund in candidate_fundamentals):		
-                        cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol))
-                        cursor.execute("DELETE FROM eft_holdings WHERE parent_symbol = ?", (symbol))
+                    if not any(f['symbol'] == symbol for f in candidate_fundamentals):		
+                        cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol,))
+                        cursor.execute("DELETE FROM etf_holdings WHERE parent_symbol = ?", (symbol,))
                     
                     #break
                 else:
@@ -260,85 +259,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
                     cursor.execute("INSERT INTO candidates (symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etfdb_analyst_report) \
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(fund['symbol']),0, str(fund['description']),str(fund_instrument['type']),str(fund['sector']),str(fund['industry']),str(fund['ceo']),str(fund['headquarters_city']),str(fund['headquarters_state']),str(self.to_decimal(fund['market_cap'])),str(self.to_decimal(fund['pb_ratio'])),str(self.to_decimal(fund['pe_ratio'])),str(self.to_decimal(fund['shares_outstanding'])),""))
             
-                    candidate_id = cursor.lastrowid
-                    
-                if fund_instrument['type'] =="etp":
-                    etf = etfHoldings(fund['symbol'])
-                    holdings = etf.get_holdings()
-                    total_holdings = etf.get_total_holdings()
-                    analyst_report = etf.get_analyst_report()   
-
-                    etf_fundamentals = self.query.get_fundamentals_by_symbols(holdings)
-                    
-                    for holding in holdings:
-                        for row in cursor.execute("SELECT id,candidate_id, symbol, parent_symbol, etfdb_weight FROM etf_holdings"):
-                            id,candidate_id,symbol,parent_symbol,etfdb_weight = row
-                            update = False
-                        
-                            if holding[0] == symbol:
-                                etfdb_weight,update = (str(holding[1]),True)  if str(holding[1])  != etfdb_weight else (etfdb_weight,False)				
-                                if update == True:
-                                    # Update stock in sqlite if any values don't match	
-                                    cursor.execute("UPDATE etf_holdings SET etfdb_weight = ? WHERE symbol = ?", \
-                                        (holding[1],holding[0])) 
-                        
-                                holding_id = id
-                        
-                            # Delete stock from sqlite if it does not exist in new 
-                            if not any(holding[0] == symbol for holding in holdings):
-                                cursor.execute("DELETE FROM etf_holdings WHERE symbol = ?", (holdings[0]));
-                    
-                        else:
-                            # Insert stock to sqlite 				
-                            cursor.execute("INSERT INTO etf_holdings (candidate_id,symbol,parent_symbol,etfdb_weight) \
-                                VALUES (?, ?, ?, ?)", (candidate_id,str(holding[0]),str(fund['symbol']),holding[1]))
-            
-                            holding_id = cursor.lastrowid
-                    
-                        
-                    etf_fundamentals = self.query.get_fundamentals_by_symbols(holdings)
-                    
-                    for etf_fund in etf_fundamentals:
-                        etf_fund_instrument = self.query.get_instrument(etf_fund['symbol'])
-                        for row in cursor.execute("SELECT id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding FROM candidates"):
-                            id,symbol,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding = row
-                            update = False
-                            if etf_fund['symbol'] == symbol:
-                                description,update = (str(etf_fund['description']),True) if str(etf_fund['description']) != description else (description,False)				
-                                instrument,update = (str(fund_instrument['type']),True) if str(etf_fund_instrument['type']) != instrument else (instrument,False)				
-                                sector,update = (str(etf_fund['sector']),True) if str(etf_fund['sector']) != sector else (sector,False)				
-                                industry,update = (str(etf_fund['industry']),True) if str(etf_fund['industry']) != industry else (industry,False)				
-                                ceo,update = (str(etf_fund['ceo']),True) if str(etf_fund['ceo']) != ceo else (ceo,False)				
-                                headquarters_city,update = (str(etf_fund['headquarters_city']),True) if str(etf_fund['headquarters_city']) != headquarters_city else (headquarters_city,False)				
-                                headquarters_state,update = (str(etf_fund['headquarters_state']),True) if str(etf_fund['headquarters_state']) != headquarters_state else (headquarters_state,False)	
-                                market_cap,update = (str(self.to_decimal(etf_fund['market_cap'])),True) if str(self.to_decimal(etf_fund['market_cap'])) != market_cap else (market_cap,False)				
-                                pb_ratio,update = (str(self.to_decimal(etf_fund['pb_ratio'])),True) if str(self.to_decimal(etf_fund['pb_ratio'])) != pb_ratio else (pb_ratio,False)				
-                                pe_ratio,update = (str(self.to_decimal(etf_fund['pe_ratio'])),True) if str(self.to_decimal(etf_fund['pe_ratio'])) != pe_ratio else (pe_ratio,False)	
-                                shares_outstanding,update = (str(self.to_decimal(etf_fund['shares_outstanding'])),True)  if str(self.to_decimal(etf_fund['shares_outstanding']))  != shares_outstanding else (shares_outstanding,False)				
-                                
-                                if update == True:
-                                    # Update stock in sqlite if any values don't match	
-                                    cursor.execute("UPDATE candidates SET description = ?, instrument = ?, sector = ?, industry = ?, ceo = ?, headquarters_city = ?, headquarters_state = ?, market_cap = ?, pb_ratio = ?, pe_ratio = ?, shares_outstanding = ? WHERE symbol = ?", \
-                                        (description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etf_fund['symbol'])) 
-                                
-                                etf_fund_id = id
-                                
-                            # Delete stock from sqlite if it does not exist in new 
-                            if not any(fund['symbol'] == symbol for fund in etf_fundamentals):		
-                                cursor.execute("DELETE FROM candidates WHERE symbol = ?", (symbol))
-                            
-                            #break
-                        else:
-                            # Insert stock to sqlite 				
-                            cursor.execute("INSERT INTO candidates (symbol,allow_trading,description,instrument,sector,industry,ceo,headquarters_city,headquarters_state,market_cap,pb_ratio,pe_ratio,shares_outstanding,etfdb_analyst_report) \
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(etf_fund['symbol']),0, str(etf_fund['description']),str(etf_fund_instrument['type']),str(etf_fund['sector']),str(etf_fund['industry']),str(etf_fund['ceo']),str(etf_fund['headquarters_city']),str(etf_fund['headquarters_state']),str(self.to_decimal(etf_fund['market_cap'])),str(self.to_decimal(etf_fund['pb_ratio'])),str(self.to_decimal(etf_fund['pe_ratio'])),str(self.to_decimal(etf_fund['shares_outstanding'])),""))
-                    
-                            etf_fund_id = cursor.lastrowid
-                        
-                    # Update candidate analyst report from ETFDB
-                    cursor.execute("UPDATE candidates SET etfdb_analyst_report = ? WHERE symbol = ?", \
-                        (analyst_report,str(fund['symbol'])))
-					
+                    candidate_id = cursor.lastrowid		
 					
             long_candidate_low_avg /= max(len(long_candidate_fundamentals), 1)
             short_candidate_low_avg /= max(len(short_candidate_fundamentals), 1)
@@ -351,8 +272,7 @@ class NoDayTradesDSAlgorithm(Algorithm):
             
             
             for fund in candidates_to_trade_symbols:
-                print(fund)
-                cursor.execute("UPDATE candidates SET allow_trading = 1 WHERE symbol = ?",(fund))	
+                cursor.execute("UPDATE candidates SET allow_trading = 1 WHERE symbol = ?",(fund,))	
                 
             # Set a weight for trades
             to_trade_weight = 1.00 / len(candidates_to_trade_symbols)

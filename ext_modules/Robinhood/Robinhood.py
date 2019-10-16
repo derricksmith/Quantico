@@ -988,10 +988,10 @@ class Robinhood:
             Returns:
                 (:object: `dict`): JSON dict from getting positions
         """
-        try:
-            return self.session.get(endpoints.positions(), timeout=15).json()
-        except requests.exceptions.RequestException as e:
-            raise e
+        #try:
+        return self.session.get(endpoints.positions(), timeout=15).json()
+        #except requests.exceptions.RequestException as e:
+        #    raise e
 
     def securities_owned(self):
         """Returns list of securities' symbols that the user has shares in

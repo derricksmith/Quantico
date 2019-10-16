@@ -122,9 +122,9 @@ class Algorithm:
     # NOTE: Called once when algorithm is run.
     def run_once(self, cash = None, prices = None):
         self.event = Event.RUN_ONCE
-        self.__reset_for_next_day()
-        self.__update_cash(cash)
-        self.__update_prices(prices)
+        #self.__reset_for_next_day()
+        #self.__update_cash(cash)
+        #self.__update_prices(prices)
         pass
     # on_market_will_open:Void
     # param cash:Float => User's buying power.
@@ -173,8 +173,8 @@ class Algorithm:
     # NOTE: Called on an interval while market is open.
     def while_market_closed(self, cash = None, prices = None):
         self.event = Event.WHILE_MARKET_CLOSED
-        self.__update_cash(cash)
-        self.__update_prices(prices)
+        #self.__update_cash(cash)
+        #self.__update_prices(prices)
         pass
 
     # on_custom_timer:Void

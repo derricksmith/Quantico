@@ -101,6 +101,10 @@ class etfHoldings():
     def get_holdings(self):
         return self.holdings
         
+    def get_holdings_symbols(self):
+        list = [i[0] for i in self.holdings]
+        return list
+        
     def get_analyst_report(self):
         return self.analyst_report 
     
